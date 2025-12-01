@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Portail Commercial Centralisé</title>
     
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -15,24 +15,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Montserrat', sans-serif; background-color: #f1ff9; user-select: none; -webkit-user-select: none; }
+        body { font-family: 'Montserrat', sans-serif; background-color: #f1f5f9; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
         .loader { border-top-color: #1e3a8a; -webkit-animation: spinner 1s linear infinite; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         /* Styles pour la navigation mobile */
-        .mobile-nav-item { display: flex; flex-direction: column; align-items: center; font-size: 0.7rem; color: #94a3b8; }
+        .mobile-nav-item { display: flex; flex-direction: column; align-items: center; font-size: 0.7rem; color: #94a3b8; flex: 1; }
         .mobile-nav-item.active { color: #2563eb; font-weight: bold; }
         
         .suggestions-list { position: absolute; background: white; width: 100%; border: 1px solid #e2e8f0; border-radius: 0.5rem; z-index: 50; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .suggestion-item { padding: 0.5rem 1rem; cursor: pointer; font-size: 0.875rem; }
+        .suggestion-item { padding: 0.75rem 1rem; cursor: pointer; font-size: 0.875rem; }
         .suggestion-item:hover { background-color: #eff6ff; }
         
         /* Styles pour les popups */
-        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 2rem; border-radius: 0.75rem; max-width: 400px; width: 90%; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 1rem; }
+        .modal-content { background: white; padding: 1.5rem; border-radius: 0.75rem; max-width: 400px; width: 100%; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         
         /* Style pour la popup d'erreur personnalisée */
-        .error-popup { background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; padding: 1rem; border-radius: 0.5rem; }
+        .error-popup { background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; padding: 1rem; border-radius: 0.5rem; font-size: 0.9rem; }
 
         /* Animation pour la corbeille */
         @keyframes trash-shake {
@@ -43,6 +43,10 @@
         .animate-trash:hover svg {
             animation: trash-shake 0.5s ease-in-out;
         }
+        
+        /* Scrollbar hide for horizontal scroll areas */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -326,7 +330,7 @@
             if (!isOpen) return null;
 
             return React.createElement('div', { className: "modal-overlay" },
-                React.createElement('div', { className: "modal-content w-full max-w-sm text-center" },
+                React.createElement('div', { className: "modal-content text-center" },
                     React.createElement('div', { className: "h-16 w-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mx-auto mb-4" },
                         React.createElement(Icon, { name: "check", size: 32 })
                     ),
@@ -785,27 +789,27 @@
                             React.createElement('table', { className: "w-full text-left" },
                                 React.createElement('thead', { className: "bg-slate-50 text-[10px] md:text-xs uppercase text-slate-500 font-bold tracking-wider" },
                                     React.createElement('tr', null,
-                                        React.createElement('th', { className: "p-3" }, "Réf & Client"),
-                                        React.createElement('th', { className: "p-3 hidden md:table-cell" }, "Commercial"),
-                                        React.createElement('th', { className: "p-3" }, "Statut"),
-                                        React.createElement('th', { className: "p-3 hidden md:table-cell" }, "Date Création"),
-                                        React.createElement('th', { className: "p-3 text-right" }, "Actions")
+                                        React.createElement('th', { className: "p-2 md:p-3" }, "Réf & Client"),
+                                        React.createElement('th', { className: "p-2 md:p-3 hidden md:table-cell" }, "Commercial"),
+                                        React.createElement('th', { className: "p-2 md:p-3" }, "Statut"),
+                                        React.createElement('th', { className: "p-2 md:p-3 hidden md:table-cell" }, "Date Création"),
+                                        React.createElement('th', { className: "p-2 md:p-3 text-right" }, "Actions")
                                     )
                                 ),
                                 React.createElement('tbody', { className: "text-xs md:text-sm divide-y divide-slate-100" },
                                     orders.map(o => React.createElement('tr', { key: o.id, className: "hover:bg-slate-50 transition-colors" },
-                                        React.createElement('td', { className: "p-3" },
+                                        React.createElement('td', { className: "p-2 md:p-3" },
                                             React.createElement('div', { className: "font-mono font-bold text-blue-600" }, o.reference),
-                                            React.createElement('div', { className: "text-slate-700 font-medium" }, o.companyName)
+                                            React.createElement('div', { className: "text-slate-700 font-medium truncate max-w-[120px] md:max-w-none" }, o.companyName)
                                         ),
                                         
                                         // --- COLONNE COMMERCIAL ---
-                                        React.createElement('td', { className: "p-3 hidden md:table-cell text-indigo-600 font-medium" },
+                                        React.createElement('td', { className: "p-2 md:p-3 hidden md:table-cell text-indigo-600 font-medium" },
                                             salesRepsMap[o.salesRepId] || o.salesRepName || 'N/A'
                                         ),
                                         
                                         // --- COLONNE STATUT AVEC SELECTEUR (Statuts simplifiés) ---
-                                        React.createElement('td', { className: "p-3" },
+                                        React.createElement('td', { className: "p-2 md:p-3" },
                                             o.status === 'RequestDelete'
                                             ? React.createElement('span', { className: "bg-red-100 text-red-800 text-[10px] px-2 py-1 rounded-full font-bold border border-red-200" }, StatusMap[o.status].label)
                                             : React.createElement('select', {
@@ -820,10 +824,10 @@
                                             )
                                         ),
 
-                                        React.createElement('td', { className: "p-3 hidden md:table-cell whitespace-nowrap text-slate-500" },
+                                        React.createElement('td', { className: "p-2 md:p-3 hidden md:table-cell whitespace-nowrap text-slate-500" },
                                             o.createdAt.seconds ? new Date(o.createdAt.seconds * 1000).toLocaleDateString() : '-'
                                         ),
-                                        React.createElement('td', { className: "p-3 text-right" },
+                                        React.createElement('td', { className: "p-2 md:p-3 text-right" },
                                             React.createElement('div', { className: "flex justify-end gap-2 flex-wrap" },
                                                 
                                                 
@@ -1064,8 +1068,8 @@
 
             return React.createElement('div', { className: "max-w-5xl mx-auto" },
                 isEditing && React.createElement('div', { className: "bg-indigo-100 border border-indigo-200 p-4 rounded-xl mb-6 flex justify-between items-center" },
-                    React.createElement('p', { className: "font-bold text-indigo-800" }, `MODE ÉDITION : Commande ${currentOrder.reference}`),
-                    React.createElement('button', { onClick: () => setCurrentOrder(null), className: "text-indigo-600 hover:text-indigo-800 font-medium" }, "Annuler Édition")
+                    React.createElement('p', { className: "font-bold text-indigo-800 text-sm md:text-base" }, `MODE ÉDITION : ${currentOrder.reference}`),
+                    React.createElement('button', { onClick: () => setCurrentOrder(null), className: "text-indigo-600 hover:text-indigo-800 font-medium text-sm" }, "Annuler")
                 ),
                 error && React.createElement('div', { className: "error-popup mb-6 font-medium" }, React.createElement(Icon, { name: "x", size: 16, className: "inline mr-2" }), error),
                 React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-6" },
@@ -1082,17 +1086,17 @@
                             ),
                             !isSiretPending ? (
                                 React.createElement('div', { className: "flex gap-3 mb-4" },
-                                    React.createElement('input', { type: "text", placeholder: "SIREN (9 chiffres)", value: form.siren, onChange: (e) => setForm({...form, siren: e.target.value.replace(/[^\d]/g, '').substring(0, 9)}), className: "flex-1 border border-slate-200 rounded-lg px-4 py-2" }),
+                                    React.createElement('input', { type: "text", placeholder: "SIREN (9 chiffres)", value: form.siren, onChange: (e) => setForm({...form, siren: e.target.value.replace(/[^\d]/g, '').substring(0, 9)}), className: "flex-1 border border-slate-200 rounded-lg px-4 py-2 text-base" }),
                                     React.createElement('button', { onClick: searchSiren, disabled: loading || isEditing || form.siren.length !== 9, className: "bg-slate-800 text-white px-5 py-2 rounded-lg" }, loading ? "..." : "Rechercher")
                                 )
                             ) : (
-                                React.createElement('div', { className: "grid grid-cols-3 gap-3 mb-4" },
-                                    React.createElement('select', { value: civility, onChange: (e) => setCivility(e.target.value), className: "border border-slate-200 rounded-lg px-2 py-2" },
+                                React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-3 gap-3 mb-4" },
+                                    React.createElement('select', { value: civility, onChange: (e) => setCivility(e.target.value), className: "border border-slate-200 rounded-lg px-2 py-2 text-base" },
                                         React.createElement('option', { value: "M." }, "M."),
                                         React.createElement('option', { value: "Mme" }, "Mme")
                                     ),
-                                    React.createElement('input', { type: "text", placeholder: "Prénom*", required: true, value: firstName, onChange: (e) => setFirstName(e.target.value), className: "border border-slate-200 rounded-lg px-4 py-2" }),
-                                    React.createElement('input', { type: "text", placeholder: "Nom*", required: true, value: lastName, onChange: (e) => setLastName(e.target.value), className: "border border-slate-200 rounded-lg px-4 py-2" })
+                                    React.createElement('input', { type: "text", placeholder: "Prénom*", required: true, value: firstName, onChange: (e) => setFirstName(e.target.value), className: "border border-slate-200 rounded-lg px-4 py-2 text-base" }),
+                                    React.createElement('input', { type: "text", placeholder: "Nom*", required: true, value: lastName, onChange: (e) => setLastName(e.target.value), className: "border border-slate-200 rounded-lg px-4 py-2 text-base" })
                                 )
                             ),
                             (!isSiretPending && form.companyName) && React.createElement('div', { className: "bg-blue-50 p-4 rounded-lg border border-blue-100 mb-4" },
@@ -1107,15 +1111,15 @@
                                 (isDifferentAddress || isSiretPending) && React.createElement('div', { className: "relative" },
                                     React.createElement('div', { className: "flex items-center border border-slate-200 rounded-lg bg-slate-50" },
                                         React.createElement('div', { className: "pl-3 text-slate-400" }, React.createElement(Icon, { name: "mapPin", size: 16 })),
-                                        React.createElement('input', { type: "text", placeholder: "Rechercher adresse...", value: form.address, onChange: (e) => handleAddressSearch(e.target.value), className: "w-full bg-transparent px-4 py-2 outline-none text-sm" })
+                                        React.createElement('input', { type: "text", placeholder: "Rechercher adresse...", value: form.address, onChange: (e) => handleAddressSearch(e.target.value), className: "w-full bg-transparent px-4 py-2 outline-none text-base" })
                                     ),
                                     addressSuggestions.length > 0 && React.createElement('div', { className: "suggestions-list" },
                                         addressSuggestions.map((s, i) => React.createElement('div', { key: i, className: "suggestion-item", onClick: () => { setForm(prev => ({...prev, address: s.properties.label})); setAddressSuggestions([]); } }, s.properties.label))
                                     )
                                 )
                             ),
-                            React.createElement('div', { className: "grid grid-cols-2 gap-4 mt-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Email Contact"), React.createElement('input', { type: "email", required: true, value: form.clientEmail, onChange: (e) => setForm({...form, clientEmail: e.target.value}), className: "w-full border border-slate-200 rounded-lg px-4 py-2" })),
+                            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" },
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Email Contact"), React.createElement('input', { type: "email", required: true, value: form.clientEmail, onChange: (e) => setForm({...form, clientEmail: e.target.value}), className: "w-full border border-slate-200 rounded-lg px-4 py-2 text-base" })),
                                 React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Téléphone (10 chiffres)*"), React.createElement('input', {
                                     type: "tel",
                                     inputMode: "tel",
@@ -1123,7 +1127,7 @@
                                     maxLength: 14,
                                     value: form.clientPhone,
                                     onChange: handlePhoneChange,
-                                    className: "w-full border border-slate-200 rounded-lg px-4 py-2 font-mono"
+                                    className: "w-full border border-slate-200 rounded-lg px-4 py-2 font-mono text-base"
                                 }))
                             )
                         ),
@@ -1131,16 +1135,16 @@
                         React.createElement('div', { className: "bg-white rounded-xl shadow-sm border border-slate-100 p-6" },
                             React.createElement('h2', { className: "text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2" }, React.createElement(Icon, { name: "users", className: "text-green-600" }), "2. Objectifs"),
                             React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-medium text-slate-500 mb-1" }, "Nombre de Commerciaux"), React.createElement('input', { type: "number", min: 0, value: form.salesRepsCount, onChange: (e) => setForm({...form, salesRepsCount: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2" })),
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-medium text-slate-500 mb-1" }, "Plafond RDV* (Obligatoire)"), React.createElement('input', { type: "number", min: 1, required: true, value: form.maxRdvTotal, onChange: (e) => setForm({...form, maxRdvTotal: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2" }))
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-medium text-slate-500 mb-1" }, "Nombre de Commerciaux"), React.createElement('input', { type: "number", min: 0, value: form.salesRepsCount, onChange: (e) => setForm({...form, salesRepsCount: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2 text-base" })),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs font-medium text-slate-500 mb-1" }, "Plafond RDV* (Obligatoire)"), React.createElement('input', { type: "number", min: 1, required: true, value: form.maxRdvTotal, onChange: (e) => setForm({...form, maxRdvTotal: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2 text-base" }))
                             )
                         ),
                         // Section Période
                         React.createElement('div', { className: "bg-white rounded-xl shadow-sm border border-slate-100 p-6" },
                             React.createElement('h2', { className: "text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2" }, React.createElement(Icon, { name: "calendar", className: "text-orange-500" }), "3. Période & Tarif"),
-                            React.createElement('div', { className: "grid grid-cols-2 gap-4 mb-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Début"), React.createElement('input', { type: "date", value: form.startDate, onChange: (e) => setForm({...form, startDate: e.target.value}), className: "w-full border border-slate-200 rounded-lg p-2 font-bold text-blue-600" })),
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Fin (J+7)"), React.createElement('input', { type: "date", value: form.endDate, disabled: true, className: "w-full border border-slate-200 bg-slate-50 rounded-lg p-2" }))
+                            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mb-4" },
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Début"), React.createElement('input', { type: "date", value: form.startDate, onChange: (e) => setForm({...form, startDate: e.target.value}), className: "w-full border border-slate-200 rounded-lg p-2 font-bold text-blue-600 text-base" })),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Fin (J+7)"), React.createElement('input', { type: "date", value: form.endDate, disabled: true, className: "w-full border border-slate-200 bg-slate-50 rounded-lg p-2 text-base" }))
                             ),
                             React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Tarif / RDV"), React.createElement('div', { className: "w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-500 font-mono" }, `${globalSettings.defaultRate} € ${globalSettings.taxType || 'HT'}`))
                         )
@@ -1150,14 +1154,14 @@
                         React.createElement('div', { className: "bg-white rounded-xl shadow-sm border border-slate-100 p-6" },
                             React.createElement('h2', { className: "text-lg font-semibold text-slate-700 mb-4 flex items-center gap-2" }, React.createElement(Icon, { name: "car", className: "text-purple-500" }), "4. Véhicule & Zone"),
                             React.createElement('div', { className: "space-y-4" },
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Rayon (km)"), React.createElement('input', { type: "number", value: form.radiusKm, onChange: (e) => setForm({...form, radiusKm: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2" })),
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Max Km"), React.createElement('input', { type: "number", value: form.maxKmPerVehicle, onChange: (e) => setForm({...form, maxKmPerVehicle: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2" })),
-                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Année Min"), React.createElement('input', { type: "number", value: form.minVehicleYear, onChange: (e) => setForm({...form, minVehicleYear: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2" })),
-                                React.createElement('div', { className: "pt-4 border-t border-slate-100" }, React.createElement('label', { className: "block text-xs font-bold text-red-500 mb-1" }, "Modèles Exclus (Facultatif)"), React.createElement('input', { type: "text", placeholder: "Ex: Twingo...", value: form.excludedVehicles, onChange: (e) => setForm({...form, excludedVehicles: e.target.value}), className: "w-full border border-red-200 bg-red-50 rounded-lg p-2 text-red-700" }))
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Rayon (km)"), React.createElement('input', { type: "number", value: form.radiusKm, onChange: (e) => setForm({...form, radiusKm: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2 text-base" })),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Max Km"), React.createElement('input', { type: "number", value: form.maxKmPerVehicle, onChange: (e) => setForm({...form, maxKmPerVehicle: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2 text-base" })),
+                                React.createElement('div', null, React.createElement('label', { className: "block text-xs text-slate-500 mb-1" }, "Année Min"), React.createElement('input', { type: "number", value: form.minVehicleYear, onChange: (e) => setForm({...form, minVehicleYear: parseInt(e.target.value)}), className: "w-full border border-slate-200 rounded-lg p-2 text-base" })),
+                                React.createElement('div', { className: "pt-4 border-t border-slate-100" }, React.createElement('label', { className: "block text-xs font-bold text-red-500 mb-1" }, "Modèles Exclus (Facultatif)"), React.createElement('input', { type: "text", placeholder: "Ex: Twingo...", value: form.excludedVehicles, onChange: (e) => setForm({...form, excludedVehicles: e.target.value}), className: "w-full border border-red-200 bg-red-50 rounded-lg p-2 text-red-700 text-base" }))
                             )
                         ),
                         React.createElement('button', { onClick: handleSave, disabled: loading, className: `w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3 ${loading ? 'opacity-70' : ''}` },
-                            loading ? React.createElement('div', { className: "loader h-6 w-6 rounded-full border-4 border-white" }) : React.createElement(Icon, { name: isEditing ? "refreshCw" : "save" }), isEditing ? "METTRE À JOUR & TÉLÉCHARGER PDF" : "GÉNÉRER PDF"
+                            loading ? React.createElement('div', { className: "loader h-6 w-6 rounded-full border-4 border-white" }) : React.createElement(Icon, { name: isEditing ? "refreshCw" : "save" }), isEditing ? "METTRE À JOUR" : "GÉNÉRER PDF"
                         )
                     )
                 )
@@ -1215,7 +1219,7 @@
 
                     // 2. Création du Log d'Audit pour l'Admin
                     if (newName !== oldName) {
-                         await addDoc(collection(db, "nameChanges"), {
+                            await addDoc(collection(db, "nameChanges"), {
                             userId: user.uid,
                             userEmail: user.email,
                             oldName: oldName,
@@ -1226,7 +1230,7 @@
                     } else {
                         setMessage("Informations mises à jour ! (Pas de changement de nom détecté)");
                     }
-                   
+                    
                     setLoading(false);
                     setIsEditing(false); // Revenir au mode lecture seule après sauvegarde
                 } catch (error) {
@@ -1267,7 +1271,7 @@
                     // Vue Lecture seule
                     !isEditing ? (
                         React.createElement('div', { className: "space-y-4" },
-                            React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                                 React.createElement('div', { className: "p-3 bg-slate-50 rounded-lg border border-slate-100" },
                                     React.createElement('p', { className: "text-xs text-slate-500 uppercase font-bold mb-1" }, "Prénom"),
                                     React.createElement('p', { className: "font-medium text-slate-800" }, userData?.firstName || 'Non défini')
@@ -1283,7 +1287,7 @@
                     ) : (
                         // Vue Édition
                         React.createElement('form', { onSubmit: handleSaveName, className: "space-y-4" },
-                            React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                                 React.createElement('div', null,
                                     React.createElement('label', { className: "block text-sm font-medium text-slate-700 mb-1" }, "Prénom"),
                                     React.createElement('input', { type: "text", required: true, value: firstName, onChange: e => setFirstName(e.target.value), className: "w-full border border-slate-300 rounded-lg px-4 py-2" })
@@ -1324,7 +1328,7 @@
                         ),
                         React.createElement('div', { className: "p-4 bg-slate-50 rounded-lg border border-slate-100" },
                             React.createElement('p', { className: "text-xs text-slate-500 uppercase font-bold mb-1" }, "ID Utilisateur"),
-                            React.createElement('p', { className: "font-mono text-sm text-slate-600" }, user.uid)
+                            React.createElement('p', { className: "font-mono text-sm text-slate-600 break-all" }, user.uid)
                         )
                     )
                 ),
@@ -1441,7 +1445,7 @@
                     const qUsers = query(collection(db, "users"));
                     const unsubscribe = onSnapshot(qUsers, (snap) => {
                         const reps = snap.docs.map(d => ({id: d.id, ...d.data()}))
-                                             .filter(r => r.role === 'sales' || r.role === 'intern' || r.role === 'admin');
+                                               .filter(r => r.role === 'sales' || r.role === 'intern' || r.role === 'admin');
                         setAllSalesReps(reps);
                     });
                     return () => unsubscribe();
@@ -1675,16 +1679,16 @@
                 }
             };
 
-            return React.createElement('div', { className: "min-h-screen bg-slate-900 p-8" },
+            return React.createElement('div', { className: "min-h-screen bg-slate-900 p-2 md:p-8" },
                 React.createElement('div', { className: "max-w-7xl mx-auto" },
-                    React.createElement('div', { className: "flex justify-between items-center mb-8" },
-                        React.createElement('button', { onClick: () => setView('dashboard'), className: "text-slate-400 hover:text-white flex items-center gap-2" }, "← Retour App"),
-                        React.createElement('div', { className: "flex bg-slate-800 rounded-lg p-1" },
+                    React.createElement('div', { className: "flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4" },
+                        React.createElement('button', { onClick: () => setView('dashboard'), className: "text-slate-400 hover:text-white flex items-center gap-2 mb-2 md:mb-0" }, "← Retour App"),
+                        React.createElement('div', { className: "flex bg-slate-800 rounded-lg p-1 overflow-x-auto whitespace-nowrap max-w-full hide-scrollbar w-full md:w-auto" },
                             ['orders', 'trash', 'history', 'team', 'clients', 'settings'].map(t =>
                                 React.createElement('button', { 
                                     key: t, 
                                     onClick: () => handleTabChange(t), 
-                                    className: `px-4 py-2 rounded text-sm ${tab === t ? 'bg-blue-600 text-white' : 'text-slate-400'}` 
+                                    className: `px-4 py-2 rounded text-sm flex-shrink-0 ${tab === t ? 'bg-blue-600 text-white' : 'text-slate-400'}` 
                                 },
                                     t === 'orders' ? 'Commandes' : t === 'team' ? 'Gestion Équipe' : t === 'clients' ? 'Clients' : t === 'trash' ? React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(Icon, { name: "trash", size: 16 }), 'Corbeille') : t === 'history' ? React.createElement('span', { className: "flex items-center gap-1" }, React.createElement(Icon, { name: "bell", size: 16 }), 'Historique Nom') : 'Config')
                             )
@@ -1961,7 +1965,7 @@
                         React.createElement('div', { className: "space-y-4 mb-6" },
                             React.createElement('input', { type: "text", placeholder: "Nom Société", value: globalSettings.myCompanyName, onChange: e => setGlobalSettings({...globalSettings, myCompanyName: e.target.value}), className: "w-full bg-slate-700 p-2 rounded text-white border border-slate-600" }),
                             React.createElement('input', { type: "text", placeholder: "Adresse Complète", value: globalSettings.myAddress, onChange: e => setGlobalSettings({...globalSettings, myAddress: e.target.value}), className: "w-full bg-slate-700 p-2 rounded text-white border border-slate-600" }),
-                            React.createElement('div', { className: "grid grid-cols-2 gap-4" },
+                            React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                                 React.createElement('input', { type: "text", placeholder: "SIRET", value: globalSettings.mySiret, onChange: e => setGlobalSettings({...globalSettings, mySiret: e.target.value}), className: "w-full bg-slate-700 p-2 rounded text-white border border-slate-600" }),
                                 React.createElement('input', { type: "email", placeholder: "Email Contact", value: globalSettings.myEmail, onChange: e => setGlobalSettings({...globalSettings, myEmail: e.target.value}), className: "w-full bg-slate-700 p-2 rounded text-white border border-slate-600" })
                             )
@@ -1975,7 +1979,7 @@
                                 React.createElement('input', { type: "number", className: "w-24 bg-slate-900 border border-yellow-500 rounded p-2 text-white font-bold text-center", value: globalSettings.sequenceNumber, onChange: e => setGlobalSettings({...globalSettings, sequenceNumber: parseInt(e.target.value)}) })
                             )
                         ),
-                        React.createElement('div', { className: "grid grid-cols-2 gap-4 mb-4" },
+                        React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mb-4" },
                             React.createElement('div', null,
                                 React.createElement('label', { className: "block text-sm text-slate-300 mb-1" }, "Tarif Base (€)"),
                                 React.createElement('input', { type: "number", className: "w-full bg-slate-700 border border-slate-600 rounded p-2 text-white", value: globalSettings.defaultRate, onChange: e => setGlobalSettings({...globalSettings, defaultRate: parseInt(e.target.value)}) })
@@ -1988,17 +1992,17 @@
                                 )
                             )
                         ),
-                        React.createElement('div', { className: "grid grid-cols-2 gap-4 mt-4" },
+                        React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" },
                             React.createElement('div', null,
                                 React.createElement('label', { className: "block text-xs text-slate-400 mb-1" }, "Logo"),
-                                React.createElement('input', { type: "file", accept: "image/*", onChange: (e) => handleImageUpload(e, 'logo'), className: "text-xs text-slate-500" })
+                                React.createElement('input', { type: "file", accept: "image/*", onChange: (e) => handleImageUpload(e, 'logo'), className: "text-xs text-slate-500 w-full" })
                             ),
                             React.createElement('div', null,
                                 React.createElement('label', { className: "block text-xs text-slate-400 mb-1" }, "Cachet"),
-                                React.createElement('input', { type: "file", accept: "image/*", onChange: (e) => handleImageUpload(e, 'stamp'), className: "text-xs text-slate-500" })
+                                React.createElement('input', { type: "file", accept: "image/*", onChange: (e) => handleImageUpload(e, 'stamp'), className: "text-xs text-slate-500 w-full" })
                             )
                         ),
-                        React.createElement('button', { onClick: saveSettings, className: "mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition" }, "ENREGISTRER TOUS LES PARAMÈTRES")
+                        React.createElement('button', { onClick: saveSettings, className: "mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition w-full md:w-auto" }, "ENREGISTRER TOUS LES PARAMÈTRES")
                     )
                 )
             );
