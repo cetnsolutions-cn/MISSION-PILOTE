@@ -423,6 +423,7 @@
             const allMenuItems = [
                 { id: 'generator', label: 'Générateur', icon: 'layout' },
                 { id: 'myOrders', label: 'Mes Demandes', icon: 'list' },
+                { id: 'scripts', label: 'Scripts d\'appel', icon: 'fileText' },
                 { id: 'profile', label: 'Mon Profil', icon: 'users' },
             ];
 
@@ -449,6 +450,10 @@
                             setShowSuccessModal
                         });
                     case 'myOrders':
+                        // --- AJOUTE CE BLOC ICI ---
+        case 'scripts':
+            return React.createElement(ScriptsModule, { user, db, isAdmin });
+        // --------------------------
                         return React.createElement(MyOrdersModule, {
                             user,
                             userData,
@@ -465,6 +470,185 @@
                         return React.createElement(FormPanel, { user, userData, globalSettings, db, isAdmin, setCurrentModule, currentOrder, setCurrentOrder, setShowSuccessModal });
                 }
             };
+            // --- MODULE SCRIPTS & PDF ---
+function ScriptsModule({ user, db, isAdmin }) {
+    const [adminScripts, setAdminScripts] = useState([]);
+    const [personalScript, setPersonalScript] = useState('');
+    const [loading, setLoading] = useState(false);
+    
+    // États pour l'upload Admin
+    const [newPdfTitle, setNewPdfTitle] = useState('');
+    const [uploading, setUploading] = useState(false);
+
+    // Charger les données
+    useEffect(() => {
+        // 1. Charger les scripts Admin (PDFs)
+        const qScripts = query(collection(db, "adminScripts"), orderBy("createdAt", "desc"));
+        const unsubScripts = onSnapshot(qScripts, (snap) => {
+            setAdminScripts(snap.docs.map(d => ({id: d.id, ...d.data()})));
+        });
+
+        // 2. Charger le script perso du commercial
+        const loadPersonal = async () => {
+            const docRef = doc(db, "users", user.uid, "private", "script");
+            const snap = await getDoc(docRef);
+            if(snap.exists()) {
+                setPersonalScript(snap.data().content || '');
+            }
+        };
+        loadPersonal();
+
+        return () => unsubScripts();
+    }, [db, user.uid]);
+
+    // Sauvegarder le script perso
+    const handleSavePersonal = async () => {
+        setLoading(true);
+        try {
+            const docRef = doc(db, "users", user.uid, "private", "script");
+            await setDoc(docRef, { 
+                content: personalScript, 
+                updatedAt: new Date() 
+            }, { merge: true });
+            alert("Vos notes personnelles sont sauvegardées !");
+        } catch(e) {
+            console.error(e);
+            alert("Erreur de sauvegarde");
+        }
+        setLoading(false);
+    };
+
+    // Fonction Admin : Upload PDF (Conversion en Base64 pour stocker dans Firestore sans Storage)
+    // Attention : Firestore limite les documents à 1MB. Fichiers légers uniquement.
+    const handleUploadPDF = async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+
+        if(file.size > 800000) { // Limite à env. 800ko pour être sûr
+            alert("Le fichier est trop volumineux pour ce système (Max 800ko). Veuillez compresser le PDF.");
+            return;
+        }
+
+        if(file.type !== "application/pdf") {
+            alert("Seuls les fichiers PDF sont acceptés.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            setUploading(true);
+            try {
+                await addDoc(collection(db, "adminScripts"), {
+                    title: newPdfTitle || file.name,
+                    fileData: reader.result, // Base64
+                    fileName: file.name,
+                    createdAt: new Date(),
+                    uploadedBy: user.email
+                });
+                setNewPdfTitle('');
+                e.target.value = null; // Reset input
+                alert("PDF ajouté avec succès !");
+            } catch(err) {
+                console.error(err);
+                alert("Erreur lors de l'envoi.");
+            }
+            setUploading(false);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Fonction Admin : Supprimer PDF
+    const deleteScript = async (id) => {
+        if(confirm("Supprimer ce script ?")) {
+            await deleteDoc(doc(db, "adminScripts", id));
+        }
+    };
+
+    // Fonction pour télécharger le Base64 en PDF
+    const downloadPdf = (script) => {
+        const link = document.createElement('a');
+        link.href = script.fileData;
+        link.download = script.title + ".pdf";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return React.createElement('div', { className: "max-w-6xl mx-auto space-y-6" },
+        
+        // SECTION 1 : DOCUMENTS PARTAGÉS (ADMIN)
+        React.createElement('div', { className: "bg-white rounded-xl shadow-sm border border-slate-200 p-6" },
+            React.createElement('div', { className: "flex justify-between items-center mb-6" },
+                React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" },
+                    React.createElement(Icon, { name: "fileText", className: "text-blue-600" }),
+                    "Scripts & Documents Officiels"
+                ),
+                isAdmin && React.createElement('div', { className: "bg-slate-50 p-3 rounded-lg border border-slate-200 flex gap-2 items-center" },
+                    React.createElement('input', { 
+                        type: "text", 
+                        placeholder: "Titre du document", 
+                        value: newPdfTitle,
+                        onChange: (e) => setNewPdfTitle(e.target.value),
+                        className: "text-sm p-1 border rounded"
+                    }),
+                    React.createElement('input', { 
+                        type: "file", 
+                        accept: "application/pdf", 
+                        onChange: handleUploadPDF,
+                        className: "text-xs w-48"
+                    }),
+                    uploading && React.createElement('span', { className: "text-xs text-blue-600 font-bold" }, "Envoi...")
+                )
+            ),
+            
+            adminScripts.length === 0 
+                ? React.createElement('p', { className: "text-slate-400 italic" }, "Aucun document partagé pour le moment.")
+                : React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
+                    adminScripts.map(script => 
+                        React.createElement('div', { key: script.id, className: "border border-slate-200 rounded-lg p-4 hover:shadow-md transition bg-slate-50 flex flex-col justify-between" },
+                            React.createElement('div', { className: "mb-3" },
+                                React.createElement('h3', { className: "font-bold text-slate-700" }, script.title),
+                                React.createElement('p', { className: "text-xs text-slate-400" }, "Mis en ligne le " + new Date(script.createdAt.seconds * 1000).toLocaleDateString())
+                            ),
+                            React.createElement('div', { className: "flex justify-between items-center mt-2" },
+                                React.createElement('button', { 
+                                    onClick: () => downloadPdf(script),
+                                    className: "flex items-center gap-2 text-sm text-blue-600 font-bold hover:text-blue-800"
+                                }, React.createElement(Icon, { name: "download", size: 16 }), "Télécharger"),
+                                
+                                isAdmin && React.createElement('button', { 
+                                    onClick: () => deleteScript(script.id),
+                                    className: "text-red-400 hover:text-red-600 p-1"
+                                }, React.createElement(Icon, { name: "trash", size: 16 }))
+                            )
+                        )
+                    )
+                )
+        ),
+
+        // SECTION 2 : NOTES PERSO (COMMERCIAL)
+        React.createElement('div', { className: "bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-[500px]" },
+            React.createElement('div', { className: "flex justify-between items-center mb-4" },
+                React.createElement('h2', { className: "text-xl font-bold text-slate-800 flex items-center gap-2" },
+                    React.createElement(Icon, { name: "edit", className: "text-green-600" }),
+                    "Mon Script Personnel / Notes"
+                ),
+                React.createElement('button', { 
+                    onClick: handleSavePersonal, 
+                    disabled: loading,
+                    className: "bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition"
+                }, React.createElement(Icon, { name: "save", size: 18 }), loading ? "Sauvegarde..." : "Enregistrer mes notes")
+            ),
+            React.createElement('p', { className: "text-sm text-slate-500 mb-2" }, "Cet espace est privé. Vous pouvez y rédiger votre propre trame d'appel, vos objections ou vos notes personnelles."),
+            React.createElement('textarea', {
+                value: personalScript,
+                onChange: (e) => setPersonalScript(e.target.value),
+                className: "flex-1 w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none resize-none font-mono text-sm leading-relaxed",
+                placeholder: "Écrivez votre script ici..."
+            })
+        )
+    );
+}
             
             // Fonction pour naviguer vers l'admin (onglet Corbeille)
             const goToAdminTrash = () => {
