@@ -1272,21 +1272,22 @@ function ScriptsModule({ user, db, isAdmin }) {
             const [firstName, setFirstName] = useState('');
             const [lastName, setLastName] = useState('');
 
-            const initialFormState = {
-                siren: '',
-                companyName: '',
-                address: '',
-                clientEmail: '',
-                clientPhone: '',
-                startDate: new Date().toISOString().split('T')[0],
-                endDate: '',
-                radiusKm: 20,
-                maxKmPerVehicle: 100000,
-                minVehicleYear: 2018,
-                excludedVehicles: '',
-                salesRepsCount: 0,
-                maxRdvTotal: 0
-            };
+           const initialFormState = {
+    siren: '',
+    companyName: '',
+    address: '',
+    clientEmail: '',
+    clientPhone: '',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: '',
+    // ❌ plus de valeurs auto ici
+    radiusKm: '',
+    maxKmPerVehicle: '',
+    minVehicleYear: '',
+    excludedVehicles: '',
+    salesRepsCount: '',
+    maxRdvTotal: ''
+};
             
             const [form, setForm] = useState(initialFormState);
             const isEditing = !!currentOrder?.id;
@@ -1294,20 +1295,21 @@ function ScriptsModule({ user, db, isAdmin }) {
 useEffect(() => {
     // CAS 1 : MODIFICATION (commande existante)
     if (currentOrder?.id) {
-        setForm({
-            siren: currentOrder.siren === 'EN COURS' ? '' : currentOrder.siren || '',
-            companyName: currentOrder.companyName || '',
-            address: currentOrder.address || '',
-            clientEmail: currentOrder.clientEmail || '',
-            clientPhone: formatPhoneNumber(currentOrder.clientPhone) || '',
-            startDate: currentOrder.startDate || new Date().toISOString().split('T')[0],
-            endDate: currentOrder.endDate || '',
-            radiusKm: parseInt(currentOrder.radiusKm) || 20,
-            maxKmPerVehicle: parseInt(currentOrder.maxKmPerVehicle) || 100000,
-            minVehicleYear: parseInt(currentOrder.minVehicleYear) || 2018,
-            excludedVehicles: currentOrder.excludedVehicles || '',
-            salesRepsCount: parseInt(currentOrder.salesRepsCount) || 0,
-            maxRdvTotal: parseInt(currentOrder.maxRdvTotal) || 0
+    setForm({
+        siren: currentOrder.siren === 'EN COURS' ? '' : currentOrder.siren || '',
+        companyName: currentOrder.companyName || '',
+        address: currentOrder.address || '',
+        clientEmail: currentOrder.clientEmail || '',
+        clientPhone: formatPhoneNumber(currentOrder.clientPhone) || '',
+        startDate: currentOrder.startDate || new Date().toISOString().split('T')[0],
+        endDate: currentOrder.endDate || '',
+        // on reprend ce qui est en BDD, mais on ne remet PAS de valeurs "magiques"
+        radiusKm: currentOrder.radiusKm ?? '',
+        maxKmPerVehicle: currentOrder.maxKmPerVehicle ?? '',
+        minVehicleYear: currentOrder.minVehicleYear ?? '',
+        excludedVehicles: currentOrder.excludedVehicles || '',
+        salesRepsCount: currentOrder.salesRepsCount ?? '',
+        maxRdvTotal: currentOrder.maxRdvTotal ?? ''
         });
 
         setIsSiretPending(currentOrder.siren === 'EN COURS');
@@ -1421,7 +1423,15 @@ useEffect(() => {
 
     // 🔹 NOM AGENCE / SOCIÉTÉ
     let finalCompanyName = (form.companyName || '').trim();
+// 3. Validation Plafond RDV
+if (!form.maxRdvTotal || parseInt(form.maxRdvTotal) <= 0) {
+    return setError("Le plafond de rendez-vous est obligatoire et doit être supérieur à zéro. Veuillez le définir dans la section 2.");
+}
 
+// 4. Validation des critères véhicule
+if (!form.maxKmPerVehicle || !form.minVehicleYear || !form.radiusKm) {
+    return setError("Merci de renseigner le rayon (km), le kilométrage max et l'année minimum du véhicule avant de valider.");
+}
     // Si pas de nom d'agence renseigné, on retombe sur "M. Prénom Nom" UNIQUEMENT si on a les infos dirigeant
     if (!finalCompanyName && isSiretPending) {
         if (!firstName.trim() || !lastName.trim()) {
