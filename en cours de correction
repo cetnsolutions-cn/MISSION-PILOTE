@@ -994,167 +994,124 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
         }
     };
     
-    const executeAction = async (actionType) => {
+   const executeAction = async (actionType) => {
         const batch = writeBatch(db);
         const col = selectedItem.type === 'Mission' ? "orders" : "contracts";
         const ref = doc(db, col, selectedItem.id);
         const finalMsg = reasonText || "";
 
+        // --- Configuration commune pour nettoyer les anciens états ---
+        const cleanState = {
+            validatedAt: null,         // On retire la validation (paiement)
+            hasBeenModified: false,    // ON RETIRE LE FLAG MODIFICATION (C'est ton bug principal)
+            modificationReason: null,  // On vide la raison de la modif
+            readBySalesRep: false,     // Le commercial doit voir le changement
+            adminRead: true,
+            viewedByAdminAt: new Date()
+        };
+
         if (actionType === 'validate') {
-            // Validation finale : contrat vraiment signé, on paie le commercial
+            // Validation finale : contrat vraiment signé
             const status = selectedItem.type === 'Contrat' ? 'Signed' : 'Envoyé';
             const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
-            // Ne pas supprimer hasBeenModified lors de la validation pour garder l'historique
-            batch.update(ref, { status: status, adminMessage: '', validatedAt: new Date(), readBySalesRep: false, adminRead: true, viewedByAdminAt: new Date() });
+            
+            // Note : Pour la validation, on garde l'historique de modif si on veut, 
+            // mais pour faire propre on peut nettoyer ou non. Ici je garde cleanState sauf validatedAt.
+            batch.update(ref, { 
+                ...cleanState,
+                status: status, 
+                adminMessage: '', 
+                validatedAt: new Date() // On remet la date de validation
+            });
+
+            // Ajouter l'argent
             if (amount > 0 && selectedItem.salesRepId) {
                 batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(amount) });
-                // Créer une notification pour le commercial avec animation
+                // Notification
                 const notificationData = {
                     userId: selectedItem.salesRepId,
                     type: 'missionSigned',
                     title: selectedItem.type === 'Contrat' ? '🎉 Contrat signé !' : '🎉 Mission validée !',
-                    message: `Votre ${selectedItem.type === 'Contrat' ? 'contrat' : 'mission'} "${selectedItem.companyName}" a été validé. +${amount}€ ajoutés à votre portefeuille.`,
-                    data: {
-                        itemId: selectedItem.id,
-                        itemType: selectedItem.type,
-                        amount: amount,
-                        showFireworks: true // Flag pour afficher les feux d'artifice
-                    },
-                    isRead: false,
-                    createdAt: serverTimestamp()
+                    message: `Votre ${selectedItem.type === 'Contrat' ? 'contrat' : 'mission'} "${selectedItem.companyName}" a été validé. +${amount}€ ajoutés.`,
+                    data: { itemId: selectedItem.id, itemType: selectedItem.type, amount: amount, showFireworks: true },
+                    isRead: false, createdAt: serverTimestamp()
                 };
                 batch.set(doc(db, "notifications", `signed-${selectedItem.id}-${Date.now()}`), notificationData);
             }
         }
         else if (actionType === 'awaiting_signature') {
-            // MODIFICATION : Si validatedAt existe, le retirer pour permettre le changement de statut
-            batch.update(ref, { 
-                status: 'AwaitingSignature', 
-                adminMessage: '', 
-                validatedAt: null, // Retirer la validation si elle existe
-                readBySalesRep: false, 
-                adminRead: true, 
-                viewedByAdminAt: new Date() 
-            });
-            // Si validatedAt existait, retirer l'argent du commercial
+            batch.update(ref, { ...cleanState, status: 'AwaitingSignature', adminMessage: '' });
+            // Retirer l'argent si c'était validé avant
             if (selectedItem.validatedAt && selectedItem.salesRepId) {
                 const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
-                if (amount > 0) {
-                    batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
-                }
+                if (amount > 0) batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
             }
         }
         else if (actionType === 'signing_in_progress') {
-            // MODIFICATION : Si validatedAt existe, le retirer pour permettre le changement de statut
-            batch.update(ref, { 
-                status: 'SigningInProgress', 
-                adminMessage: finalMsg, 
-                validatedAt: null, // Retirer la validation si elle existe
-                readBySalesRep: false, 
-                adminRead: true, 
-                viewedByAdminAt: new Date() 
-            });
-            // Si validatedAt existait, retirer l'argent du commercial
+            batch.update(ref, { ...cleanState, status: 'SigningInProgress', adminMessage: finalMsg });
             if (selectedItem.validatedAt && selectedItem.salesRepId) {
                 const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
-                if (amount > 0) {
-                    batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
-                }
+                if (amount > 0) batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
             }
         } 
-        else if (actionType === 'refuse') {
-            // MODIFICATION : Si validatedAt existe, le retirer pour permettre le changement de statut
+        else if (actionType === 'cancel') {
+            // C'est ici pour le bouton "Annuler"
             batch.update(ref, { 
+                ...cleanState, 
                 status: 'Declined', 
-                declinedReason: finalMsg, 
-                validatedAt: null, // Retirer la validation si elle existe
-                readBySalesRep: false, 
-                adminRead: true, 
-                viewedByAdminAt: new Date() 
+                declinedReason: finalMsg // On enregistre le motif saisi
             });
-            // Si validatedAt existait, retirer l'argent du commercial
             if (selectedItem.validatedAt && selectedItem.salesRepId) {
                 const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
-                if (amount > 0) {
-                    batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
-                }
+                if (amount > 0) batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
             }
         }
         else if (actionType === 'reflection') {
-            // MODIFICATION : Si validatedAt existe, le retirer pour permettre le changement de statut
-            batch.update(ref, { 
-                status: 'Reflection', 
-                reflectionReason: '', 
-                validatedAt: null, // Retirer la validation si elle existe
-                readBySalesRep: false, 
-                adminRead: true, 
-                viewedByAdminAt: new Date() 
-            });
-            // Si validatedAt existait, retirer l'argent du commercial
+            batch.update(ref, { ...cleanState, status: 'Reflection', reflectionReason: '' });
             if (selectedItem.validatedAt && selectedItem.salesRepId) {
                 const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
-                if (amount > 0) {
-                    batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
-                }
+                if (amount > 0) batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
             }
         }
         else if (actionType === 'request_modification') {
-            // Demande de modification : on marque comme modifié sans changer le statut
+            // ICI C'EST DIFFÉRENT : On active le flag modification
             batch.update(ref, { 
                 hasBeenModified: true, 
                 lastModifiedBy: user.uid, 
                 lastModifiedAt: new Date(),
                 modificationReason: finalMsg,
                 readBySalesRep: false,
-                adminRead: true // L'admin a vu sa propre demande
+                adminRead: true
             });
-            // Créer une notification pour le commercial avec clignotement rouge
+            // Notification
             if (selectedItem.salesRepId) {
                 const notificationData = {
                     userId: selectedItem.salesRepId,
                     type: 'modificationRequested',
                     title: '⚠️ Modification demandée',
-                    message: `C&N Solutions vous demande de modifier/corriger votre ${selectedItem.type === 'Contrat' ? 'contrat' : 'mission'} "${selectedItem.companyName}".${finalMsg ? `\n\nMotif : ${finalMsg}` : ''}`,
-                    data: {
-                        itemId: selectedItem.id,
-                        itemType: selectedItem.type,
-                        modificationReason: finalMsg,
-                        blinkRed: true // Flag pour clignotement rouge
-                    },
-                    isRead: false,
-                    createdAt: serverTimestamp()
+                    message: `Modification demandée pour "${selectedItem.companyName}". Motif : ${finalMsg}`,
+                    data: { itemId: selectedItem.id, itemType: selectedItem.type, modificationReason: finalMsg, blinkRed: true },
+                    isRead: false, createdAt: serverTimestamp()
                 };
                 batch.set(doc(db, "notifications", `modif-${selectedItem.id}-${Date.now()}`), notificationData);
             }
-        }
-        else if (actionType === 'cancel') {
-            // Annulation définitive du contrat
-            batch.update(ref, { status: 'Declined', declinedReason: finalMsg, readBySalesRep: false, adminRead: true, viewedByAdminAt: new Date() });
         }
         else if (actionType === 'delete_permanent') {
             batch.delete(ref);
         }
         else if (actionType === 'restore') {
-            // Restaure en Pending
             batch.update(ref, { status: 'Pending', deleteReason: null, adminRead: true });
         }
         else if (actionType === 'unvalidate') {
-            // 1. Retirer l'argent du commercial
-            const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
+             const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
             if (amount > 0 && selectedItem.salesRepId) {
                 batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
             }
-            
-            // 2. Remettre le statut en arrière et enregistrer le motif (adminMessage)
             const newStatus = selectedItem.type === 'Contrat' ? 'AwaitingSignature' : 'Envoyé';
-            
             batch.update(ref, { 
-                validatedAt: null, 
+                ...cleanState,
                 status: newStatus,
-                adminMessage: finalMsg || 'Validation annulée', 
-                readBySalesRep: false,
-                adminRead: true,
-                viewedByAdminAt: new Date()
+                adminMessage: finalMsg || 'Validation annulée'
             });
         }
 
@@ -1168,17 +1125,27 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
     const getStatusDesign = (item) => {
         const status = item.status || 'Pending';
         
-        // PRIORITÉ 1 : Si le contrat/mission est validé (validatedAt existe), afficher "SIGNÉ / PAYÉ"
+        // 1. Suppression demandée (Priorité Absolue)
+        if (status === 'RequestDelete') {
+            return { color: 'bg-red-100 text-red-800 border border-red-200', label: 'DEMANDE SUPPR.', icon: 'trash' };
+        }
+
+        // 2. Refusé / Annulé (Priorité sur la modification)
+        if (status === 'Declined') {
+            return { color: 'bg-red-50 text-red-700 border border-red-200', label: 'REFUSÉ / ANNULÉ', icon: 'x-circle' };
+        }
+
+        // 3. Validé / Payé
         if (item.validatedAt || status === 'Signed') {
             return { color: 'bg-green-100 text-green-800 border border-green-200', label: 'SIGNÉ / PAYÉ', icon: 'dollar' };
         }
         
-        // PRIORITÉ 2 : Si hasBeenModified est true, afficher "DEMANDE DE MODIFICATION ENVOYÉE"
+        // 4. Demande de modification (Seulement si PAS annulé et PAS validé)
         if (item.hasBeenModified && item.lastModifiedBy) {
-            return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'DEMANDE DE MODIFICATION ENVOYÉE', icon: 'alert-circle' };
+            return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'MODIFICATION DEMANDÉE', icon: 'alert-circle' };
         }
         
-        // Utiliser StatusMap pour les autres statuts
+        // 5. Autres statuts standards
         const statusInfo = StatusMap[status] || { label: status, color: "bg-slate-100 text-slate-700", icon: "circle" };
         return {
             label: statusInfo.label,
@@ -1186,7 +1153,6 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
             icon: statusInfo.icon || "circle"
         };
     };
-    
     const DetailBlock = ({ title, data }) => (
         React.createElement('div', { className: "mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100" },
             React.createElement('h4', { className: "text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-200 pb-2" }, title),
