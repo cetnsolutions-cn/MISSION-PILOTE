@@ -2815,72 +2815,49 @@ function DashboardLayout({ user, userData, globalSettings, db, isAdmin, setView,
                 setScriptCount(count);
             });
             
-            // Compter les demandes refusées à rectifier (non vues)
-            const qDeclinedOrders = query(collection(db, "orders"), where("salesRepId", "==", user.uid), where("status", "==", "Declined"));
-            const qDeclinedContracts = query(collection(db, "contracts"), where("salesRepId", "==", user.uid), where("status", "==", "Declined"));
-            const updateDeclinedCount = async () => {
-                const [ordersSnap, contractsSnap] = await Promise.all([
-                    getDocs(qDeclinedOrders),
-                    getDocs(qDeclinedContracts)
-                ]);
-                // Compter seulement celles qui n'ont pas été vues
-                const ordersCount = ordersSnap.docs.filter(d => !d.data().declinedViewedBySalesRep).length;
-                const contractsCount = contractsSnap.docs.filter(d => !d.data().declinedViewedBySalesRep).length;
-                
-                // MODIFICATION : Ajouter aussi les demandes de modification non lues
-                const qAllOrders = query(collection(db, "orders"), where("salesRepId", "==", user.uid));
-                const qAllContracts = query(collection(db, "contracts"), where("salesRepId", "==", user.uid));
-                const [allOrdersSnap, allContractsSnap] = await Promise.all([
-                    getDocs(qAllOrders),
-                    getDocs(qAllContracts)
-                ]);
-                
-                const modificationCount = [...allOrdersSnap.docs, ...allContractsSnap.docs].filter(d => {
-                    const data = d.data();
-                    return data.hasBeenModified && 
-                           !data.readBySalesRep && 
-                           !data.validatedAt && 
-                           data.lastModifiedBy && 
-                           data.lastModifiedBy !== user.uid; // Ne pas compter les demandes créées par le commercial lui-même
+           // --- PARTIE COMMERCIAL : GESTION DES NOTIFICATIONS (REFUS + RECTIFICATIONS) ---
+
+            // 1. On écoute TOUS les dossiers du commercial (Missions et Contrats)
+            const qAllMyOrders = query(collection(db, "orders"), where("salesRepId", "==", user.uid));
+            const qAllMyContracts = query(collection(db, "contracts"), where("salesRepId", "==", user.uid));
+
+            // Variables locales pour stocker les données reçues
+            let currentOrdersData = [];
+            let currentContractsData = [];
+
+            // Fonction unique pour recalculer le badge rouge
+            const recalculateBadge = () => {
+                const allItems = [...currentOrdersData, ...currentContractsData];
+
+                // On compte les items qui nécessitent une action
+                const actionCount = allItems.filter(item => {
+                    // CAS 1 : Dossier REFUSÉ (et pas encore vu)
+                    const isRefused = item.status === 'Declined' && !item.declinedViewedBySalesRep;
+
+                    // CAS 2 : RECTIFICATION DEMANDÉE (et pas encore vue)
+                    // C'est ici que la notification apparaît dès que l'admin demande une modif
+                    const isRectification = item.hasBeenModified === true 
+                                            && !item.readBySalesRep  // Pas encore ouvert par le commercial
+                                            && !item.validatedAt     // Pas encore validé
+                                            && item.lastModifiedBy !== user.uid; // Modifié par l'admin
+
+                    return isRefused || isRectification;
                 }).length;
-                
-                setDeclinedCount(ordersCount + contractsCount + modificationCount);
+
+                setDeclinedCount(actionCount);
             };
-            const unsubDeclinedOrders = onSnapshot(qDeclinedOrders, () => updateDeclinedCount());
-            const unsubDeclinedContracts = onSnapshot(qDeclinedContracts, () => updateDeclinedCount());
-            updateDeclinedCount(); // Initialiser le compteur
-            
-            // Vérifier les missions qui se terminent dans 2-3 jours
-            const qActiveMissions = query(
-                collection(db, "orders"),
-                where("salesRepId", "==", user.uid),
-                where("status", "in", ["Envoyé", "Signed"])
-            );
-            
-            const checkEndingMissions = async () => {
-                const snap = await getDocs(qActiveMissions);
-                const now = new Date();
-                const missionsEnding = [];
-                
-                snap.docs.forEach(doc => {
-                    const data = doc.data();
-                    if (data.endDate) {
-                        const endDate = new Date(data.endDate);
-                        const daysUntilEnd = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
-                        
-                        // Si la mission se termine dans 2-3 jours
-                        if (daysUntilEnd >= 2 && daysUntilEnd <= 3) {
-                            missionsEnding.push({
-                                id: doc.id,
-                                ...data,
-                                daysUntilEnd: daysUntilEnd
-                            });
-                        }
-                    }
-                });
-                
-                setEndingMissions(missionsEnding);
-            };
+
+            // Écouteur temps réel pour les Missions (Mets à jour le badge instantanément)
+            const unsubDeclinedOrders = onSnapshot(qAllMyOrders, (snap) => {
+                currentOrdersData = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                recalculateBadge();
+            });
+
+            // Écouteur temps réel pour les Contrats
+            const unsubDeclinedContracts = onSnapshot(qAllMyContracts, (snap) => {
+                currentContractsData = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                recalculateBadge();
+            });
             
             // Vérifier toutes les 6 heures (désactivé - plus de message de rappel)
             // checkEndingMissions();
