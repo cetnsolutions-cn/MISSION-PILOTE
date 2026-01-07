@@ -3421,6 +3421,18 @@ function WalletModule({ user, userData, db, isAdmin }) {
     const adminModalBalance = adjustingUserTransactions.reduce((acc, item) => {
         return acc + (item.isPositive ? Number(item.amount) : -Number(item.amount));
     }, 0);
+ 
+    // --- AJOUT : SYNCHRONISATION AUTOMATIQUE DU SIDEBAR ---
+    useEffect(() => {
+        // Si je suis un commercial et que le calcul a été fait
+        if (!isAdmin && userData && typeof calculatedBalance === 'number') {
+            // Si le montant stocké (Sidebar) est différent du montant calculé (Wallet)
+            if (userData.totalEarnings !== calculatedBalance) {
+                // On met à jour la base de données pour que le Sidebar affiche la bonne valeur
+                updateDoc(doc(db, "users", user.uid), { totalEarnings: calculatedBalance });
+            }
+        }
+    }, [calculatedBalance, userData, isAdmin, user.uid, db]);
     // --- RENDER ADMIN ---
     if (isAdmin) {
         return React.createElement('div', { className: "max-w-6xl mx-auto space-y-8" },
