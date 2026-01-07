@@ -2112,10 +2112,20 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
                                         )
                                     )
                                 ),
-                                React.createElement('h3', { className: "text-lg font-black text-slate-800 leading-tight mb-1 truncate" }, item.companyName || "Sans Nom"),
-                                isTrash ? 
-                                    React.createElement('p', { className: "text-xs font-bold text-red-500 mb-4 bg-white p-1.5 rounded-lg inline-block border border-red-100" }, "⚠️ Suppression demandée") :
-                                    React.createElement('p', { className: "text-xs font-bold text-slate-400 mb-4" }, item.reference || "Réf manquante"),
+                                // 1. Titre et Référence (Inchangé)
+React.createElement('h3', { className: "text-lg font-black text-slate-800 leading-tight mb-1 truncate" }, item.companyName || "Sans Nom"),
+isTrash ? 
+    React.createElement('p', { className: "text-xs font-bold text-red-500 mb-4 bg-white p-1.5 rounded-lg inline-block border border-red-100" }, "⚠️ Suppression demandée") :
+    React.createElement('p', { className: "text-xs font-bold text-slate-400 mb-4" }, item.reference || "Réf manquante"),
+
+// 2. AJOUT : Affichage du motif de rectification (Si demandé)
+(item.hasBeenModified && item.modificationReason && !item.validatedAt) && React.createElement('div', { className: "mb-4 bg-orange-50 p-2.5 rounded-xl border border-orange-100" },
+    React.createElement('div', { className: "flex items-center gap-1 mb-1" },
+        React.createElement(Icon, { name: "alert-circle", size: 12, className: "text-orange-400" }),
+        React.createElement('p', { className: "text-[9px] font-black text-orange-400 uppercase tracking-wide" }, "MOTIF DE LA DEMANDE :")
+    ),
+    React.createElement('p', { className: "text-xs font-bold text-orange-800 italic" }, `"${item.modificationReason}"`)
+),
 
                                 React.createElement('div', { className: "flex items-center gap-2 mb-4" },
                                     item.salesRepId && usersData[item.salesRepId]?.avatar ? 
