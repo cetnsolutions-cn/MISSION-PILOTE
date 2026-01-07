@@ -1077,30 +1077,38 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
                 if (amount > 0) batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
             }
         }
-        else if (actionType === 'request_modification') {
-            // ICI C'EST DIFFÉRENT : On active le flag modification ET on met à jour le statut
-            batch.update(ref, { 
-                hasBeenModified: true, 
-                lastModifiedBy: user.uid, 
-                lastModifiedAt: new Date(),
-                modificationReason: finalMsg,
-                readBySalesRep: false,
-                adminRead: true,
-                status: 'Reflection' // MODIFICATION : Mettre à jour le statut pour qu'il s'affiche correctement
-            });
-            // Notification
-            if (selectedItem.salesRepId) {
-                const notificationData = {
-                    userId: selectedItem.salesRepId,
-                    type: 'modificationRequested',
-                    title: '⚠️ Modification demandée',
-                    message: `Modification demandée pour "${selectedItem.companyName}". Motif : ${finalMsg}`,
-                    data: { itemId: selectedItem.id, itemType: selectedItem.type, modificationReason: finalMsg, blinkRed: true },
-                    isRead: false, createdAt: serverTimestamp()
-                };
-                batch.set(doc(db, "notifications", `modif-${selectedItem.id}-${Date.now()}`), notificationData);
-            }
-        }
+       else if (actionType === 'request_modification') {
+    // 1. On met à jour le dossier pour activer le mode "Rectification"
+    batch.update(ref, { 
+        hasBeenModified: true, // Déclenche l'étiquette "Modification demandée"
+        lastModifiedBy: user.uid, 
+        lastModifiedAt: new Date(),
+        modificationReason: finalMsg, // Le motif écrit par l'admin
+        readBySalesRep: false, // Force la notification "Nouveau" côté commercial
+        adminRead: true,
+        status: 'Reflection' // On utilise ce statut technique pour le garder actif sans le valider
+    });
+
+    // 2. On envoie la NOTIFICATION au commercial (Prospecteur)
+    if (selectedItem.salesRepId) {
+        const notificationData = {
+            userId: selectedItem.salesRepId, // ID du commercial
+            type: 'modificationRequested',   // Type spécifique pour icône alerte
+            title: '⚠️ Rectification requise', // Titre explicite
+            message: `L'administrateur demande une rectification sur le dossier "${selectedItem.companyName}". Motif : ${finalMsg}`,
+            data: { 
+                itemId: selectedItem.id, 
+                itemType: selectedItem.type, 
+                modificationReason: finalMsg, 
+                blinkRed: true // Fera clignoter le dossier
+            },
+            isRead: false, 
+            createdAt: serverTimestamp()
+        };
+        // Création unique de la notif
+        batch.set(doc(db, "notifications", `modif-${selectedItem.id}-${Date.now()}`), notificationData);
+    }
+}
         else if (actionType === 'delete_permanent') {
             batch.delete(ref);
         }
@@ -1126,7 +1134,7 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
         setReasonText('');
     };
 
-    // --- HELPER AFFICHAGE ---
+   // --- HELPER AFFICHAGE ---
     const getStatusDesign = (item) => {
         const status = item.status || 'Pending';
         
@@ -1135,7 +1143,7 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
             return { color: 'bg-red-100 text-red-800 border border-red-200', label: 'DEMANDE SUPPR.', icon: 'trash' };
         }
 
-        // 2. Refusé / Annulé (Priorité sur la modification)
+        // 2. Refusé / Annulé
         if (status === 'Declined') {
             return { color: 'bg-red-50 text-red-700 border border-red-200', label: 'REFUSÉ / ANNULÉ', icon: 'x-circle' };
         }
@@ -1145,11 +1153,16 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
             return { color: 'bg-green-100 text-green-800 border border-green-200', label: 'SIGNÉ / PAYÉ', icon: 'dollar' };
         }
         
-        // 4. Demande de modification (Seulement si PAS annulé et PAS validé)
-        // MODIFICATION : L'admin ne doit pas voir ce statut pour les demandes qu'il a lui-même créées
-        if (item.hasBeenModified && item.lastModifiedBy && item.lastModifiedBy !== user.uid) {
-            return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'MODIFICATION DEMANDÉE', icon: 'alert-circle' };
+        // --- LE CORRECTIF EST ICI ---
+        // 4. Si c'est une demande de rectification (indépendamment de qui regarde)
+        if (item.hasBeenModified && !item.validatedAt) {
+             return { 
+                 color: 'bg-orange-100 text-orange-800 border border-orange-200', 
+                 label: 'DEMANDE DE RECTIFICATION', 
+                 icon: 'alert-circle' 
+             };
         }
+        // -----------------------------
         
         // 5. Autres statuts standards
         const statusInfo = StatusMap[status] || { label: status, color: "bg-slate-100 text-slate-700", icon: "circle" };
@@ -5691,9 +5704,14 @@ function MyOrdersModule({ user, db, globalSettings, setCurrentModule, setCurrent
         
         // MODIFICATION : Si HasBeenModified est true MAIS qu'il a été validé, on n'affiche plus l'alerte modif
         // MODIFICATION : L'admin ne doit pas voir ce statut pour les demandes qu'il a lui-même créées
-        if (item.hasBeenModified && item.lastModifiedBy && !item.validatedAt && item.lastModifiedBy !== user.uid) {
-            return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'DEMANDE DE MODIFICATION ENVOYÉE', icon: 'alert-circle' };
-        }
+       // Dans getStatusDesign (MyOrdersModule)
+if (item.hasBeenModified && item.lastModifiedBy && !item.validatedAt && item.lastModifiedBy !== user.uid) {
+    return { 
+        color: 'bg-orange-50 text-orange-700 border border-orange-200', 
+        label: 'DEMANDE DE RECTIFICATION EN COURS', // Tu peux changer le texte ici si tu veux exactement ça
+        icon: 'alert-circle' 
+    };
+}
         
         const statusInfo = StatusMap[status];
         if (statusInfo) return { label: statusInfo.label, color: `bg-${statusInfo.color}-100 text-${statusInfo.color}-700 border border-${statusInfo.color}-200`, icon: statusInfo.icon || "circle" };
