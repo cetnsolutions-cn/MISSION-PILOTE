@@ -1078,14 +1078,15 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
             }
         }
         else if (actionType === 'request_modification') {
-            // ICI C'EST DIFFÉRENT : On active le flag modification
+            // ICI C'EST DIFFÉRENT : On active le flag modification ET on met à jour le statut
             batch.update(ref, { 
                 hasBeenModified: true, 
                 lastModifiedBy: user.uid, 
                 lastModifiedAt: new Date(),
                 modificationReason: finalMsg,
                 readBySalesRep: false,
-                adminRead: true
+                adminRead: true,
+                status: 'Reflection' // MODIFICATION : Mettre à jour le statut pour qu'il s'affiche correctement
             });
             // Notification
             if (selectedItem.salesRepId) {
@@ -1508,7 +1509,7 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
                                 React.createElement('p', { className: "text-slate-400 text-sm text-center py-8" }, "Aucune mission" ) :
                                 React.createElement('div', { className: "space-y-3" },
                                     missions.map(mission => {
-                                        const statusInfo = getStatusDesign(mission);
+                                        const statusInfo = getStatusDesignForCRM(mission);
                                         return React.createElement('div', { key: mission.id, onClick: () => { setSelectedClient(null); setClientView('overview'); handleOpenItem(mission); }, className: "bg-slate-50 rounded-xl p-4 border border-slate-200 hover:border-blue-300 transition cursor-pointer" },
                                             React.createElement('div', { className: "flex items-center justify-between mb-2" },
                                                 React.createElement('p', { className: "font-black text-slate-800" }, mission.reference || "Sans référence"),
@@ -1517,7 +1518,40 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
                                                     statusInfo.label.toUpperCase()
                                                 )
                                             ),
-                                            mission.hasBeenModified && mission.modificationReason && React.createElement('p', { className: "text-xs text-orange-600 font-bold mb-1" }, `Motif: ${mission.modificationReason}`),
+                                            mission.hasBeenModified && mission.modificationReason && React.createElement('div', { className: "flex items-center gap-2 mb-1" },
+                                                editingModificationReason?.itemId === mission.id ? (
+                                                    React.createElement(React.Fragment, null,
+                                                        React.createElement('input', {
+                                                            type: "text",
+                                                            value: newModificationReason,
+                                                            onChange: (e) => setNewModificationReason(e.target.value),
+                                                            onKeyPress: (e) => e.key === 'Enter' && handleSaveModificationReason(mission.id, 'Mission'),
+                                                            className: "flex-1 text-xs text-orange-600 font-bold border border-orange-300 rounded px-2 py-1",
+                                                            autoFocus: true
+                                                        }),
+                                                        React.createElement('button', {
+                                                            onClick: () => handleSaveModificationReason(mission.id, 'Mission'),
+                                                            className: "px-2 py-1 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700"
+                                                        }, "✓"),
+                                                        React.createElement('button', {
+                                                            onClick: () => { setEditingModificationReason(null); setNewModificationReason(''); },
+                                                            className: "px-2 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700"
+                                                        }, "✕")
+                                                    )
+                                                ) : (
+                                                    React.createElement(React.Fragment, null,
+                                                        React.createElement('p', { className: "text-xs text-orange-600 font-bold" }, `Motif: ${mission.modificationReason}`),
+                                                        isAdmin && React.createElement('button', {
+                                                            onClick: (e) => {
+                                                                e.stopPropagation();
+                                                                setEditingModificationReason({ itemId: mission.id, itemType: 'Mission', currentReason: mission.modificationReason });
+                                                                setNewModificationReason(mission.modificationReason);
+                                                            },
+                                                            className: "p-1 text-orange-600 hover:bg-orange-50 rounded"
+                                                        }, React.createElement(Icon, { name: "edit", size: 12 }))
+                                                    )
+                                                )
+                                            ),
                                             React.createElement('p', { className: "text-xs text-slate-500" }, `Créé le ${new Date(mission.createdAt?.seconds * 1000).toLocaleDateString('fr-FR')}`)
                                         );
                                     })
@@ -1533,7 +1567,7 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
                                 React.createElement('p', { className: "text-slate-400 text-sm text-center py-8" }, "Aucun contrat" ) :
                                 React.createElement('div', { className: "space-y-3" },
                                     contracts.map(contract => {
-                                        const statusInfo = getStatusDesign(contract);
+                                        const statusInfo = getStatusDesignForCRM(contract);
                                         return React.createElement('div', { key: contract.id, onClick: () => { setSelectedClient(null); setClientView('overview'); handleOpenItem(contract); }, className: "bg-slate-50 rounded-xl p-4 border border-slate-200 hover:border-purple-300 transition cursor-pointer" },
                                             React.createElement('div', { className: "flex items-center justify-between mb-2" },
                                                 React.createElement('p', { className: "font-black text-slate-800" }, contract.reference || "Sans référence"),
@@ -1542,7 +1576,40 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
                                                     statusInfo.label.toUpperCase()
                                                 )
                                             ),
-                                            contract.hasBeenModified && contract.modificationReason && React.createElement('p', { className: "text-xs text-orange-600 font-bold mb-1" }, `Motif: ${contract.modificationReason}`),
+                                            contract.hasBeenModified && contract.modificationReason && React.createElement('div', { className: "flex items-center gap-2 mb-1" },
+                                                editingModificationReason?.itemId === contract.id ? (
+                                                    React.createElement(React.Fragment, null,
+                                                        React.createElement('input', {
+                                                            type: "text",
+                                                            value: newModificationReason,
+                                                            onChange: (e) => setNewModificationReason(e.target.value),
+                                                            onKeyPress: (e) => e.key === 'Enter' && handleSaveModificationReason(contract.id, 'Contrat'),
+                                                            className: "flex-1 text-xs text-orange-600 font-bold border border-orange-300 rounded px-2 py-1",
+                                                            autoFocus: true
+                                                        }),
+                                                        React.createElement('button', {
+                                                            onClick: () => handleSaveModificationReason(contract.id, 'Contrat'),
+                                                            className: "px-2 py-1 bg-green-600 text-white rounded text-xs font-bold hover:bg-green-700"
+                                                        }, "✓"),
+                                                        React.createElement('button', {
+                                                            onClick: () => { setEditingModificationReason(null); setNewModificationReason(''); },
+                                                            className: "px-2 py-1 bg-red-600 text-white rounded text-xs font-bold hover:bg-red-700"
+                                                        }, "✕")
+                                                    )
+                                                ) : (
+                                                    React.createElement(React.Fragment, null,
+                                                        React.createElement('p', { className: "text-xs text-orange-600 font-bold" }, `Motif: ${contract.modificationReason}`),
+                                                        isAdmin && React.createElement('button', {
+                                                            onClick: (e) => {
+                                                                e.stopPropagation();
+                                                                setEditingModificationReason({ itemId: contract.id, itemType: 'Contrat', currentReason: contract.modificationReason });
+                                                                setNewModificationReason(contract.modificationReason);
+                                                            },
+                                                            className: "p-1 text-orange-600 hover:bg-orange-50 rounded"
+                                                        }, React.createElement(Icon, { name: "edit", size: 12 }))
+                                                    )
+                                                )
+                                            ),
                                             React.createElement('p', { className: "text-xs text-slate-500" }, `Créé le ${new Date(contract.createdAt?.seconds * 1000).toLocaleDateString('fr-FR')}`)
                                         );
                                     })
@@ -2746,7 +2813,25 @@ function DashboardLayout({ user, userData, globalSettings, db, isAdmin, setView,
                 // Compter seulement celles qui n'ont pas été vues
                 const ordersCount = ordersSnap.docs.filter(d => !d.data().declinedViewedBySalesRep).length;
                 const contractsCount = contractsSnap.docs.filter(d => !d.data().declinedViewedBySalesRep).length;
-                setDeclinedCount(ordersCount + contractsCount);
+                
+                // MODIFICATION : Ajouter aussi les demandes de modification non lues
+                const qAllOrders = query(collection(db, "orders"), where("salesRepId", "==", user.uid));
+                const qAllContracts = query(collection(db, "contracts"), where("salesRepId", "==", user.uid));
+                const [allOrdersSnap, allContractsSnap] = await Promise.all([
+                    getDocs(qAllOrders),
+                    getDocs(qAllContracts)
+                ]);
+                
+                const modificationCount = [...allOrdersSnap.docs, ...allContractsSnap.docs].filter(d => {
+                    const data = d.data();
+                    return data.hasBeenModified && 
+                           !data.readBySalesRep && 
+                           !data.validatedAt && 
+                           data.lastModifiedBy && 
+                           data.lastModifiedBy !== user.uid; // Ne pas compter les demandes créées par le commercial lui-même
+                }).length;
+                
+                setDeclinedCount(ordersCount + contractsCount + modificationCount);
             };
             const unsubDeclinedOrders = onSnapshot(qDeclinedOrders, () => updateDeclinedCount());
             const unsubDeclinedContracts = onSnapshot(qDeclinedContracts, () => updateDeclinedCount());
@@ -5678,14 +5763,36 @@ function MyOrdersModule({ user, db, globalSettings, setCurrentModule, setCurrent
                 const isNewlyValidated = !isAdmin && item.validatedAt && !item.readBySalesRep;
                 
                 const handleItemClick = async () => {
-                    if (isNewlyValidated) {
-                        try {
-                            const collectionName = item.type === 'Mission' ? 'orders' : 'contracts';
-                            await updateDoc(doc(db, collectionName, item.id), { readBySalesRep: true });
+                    try {
+                        const collectionName = item.type === 'Mission' ? 'orders' : 'contracts';
+                        const updates = {};
+                        
+                        // Si c'est un item validé, marquer comme lu
+                        if (isNewlyValidated) {
+                            updates.readBySalesRep = true;
                             const relatedNotif = notifications.find(n => n.data?.itemId === item.id && n.type === 'missionSigned');
                             if (relatedNotif) await markNotificationAsRead(relatedNotif.id);
-                        } catch (e) { console.error("Erreur:", e); }
-                    }
+                        }
+                        
+                        // MODIFICATION : Si c'est un item avec demande de modification, marquer comme lu et marquer la notification
+                        if (needsModification && !item.readBySalesRep) {
+                            updates.readBySalesRep = true;
+                            // Marquer toutes les notifications de modification pour cet item comme lues
+                            const modifNotifications = notifications.filter(n => 
+                                n.data?.itemId === item.id && 
+                                (n.type === 'modificationRequested' || n.data?.blinkRed)
+                            );
+                            for (const notif of modifNotifications) {
+                                await markNotificationAsRead(notif.id);
+                            }
+                        }
+                        
+                        // Appliquer les mises à jour si nécessaire
+                        if (Object.keys(updates).length > 0) {
+                            await updateDoc(doc(db, collectionName, item.id), updates);
+                        }
+                    } catch (e) { console.error("Erreur:", e); }
+                    
                     setCurrentOrder(item);
                     setCurrentModule(item.type === 'Mission' ? 'generator' : 'contractGenerator');
                 };
@@ -9019,6 +9126,41 @@ function ClientsCRMModule({ user, userData, db, isAdmin }) {
     const [editingSalesRepsCount, setEditingSalesRepsCount] = useState(false);
     const [salesRepsCountValue, setSalesRepsCountValue] = useState('');
     const [salesRepsCountUnknown, setSalesRepsCountUnknown] = useState(false);
+    const [editingModificationReason, setEditingModificationReason] = useState(null); // {itemId, itemType, currentReason}
+    const [newModificationReason, setNewModificationReason] = useState('');
+
+    // Fonction getStatusDesign spécifique pour ClientsCRMModule (l'admin doit voir ses propres demandes de modification)
+    const getStatusDesignForCRM = (item) => {
+        const status = item.status || 'Pending';
+        
+        // 1. Suppression demandée
+        if (status === 'RequestDelete') {
+            return { color: 'bg-red-100 text-red-800 border border-red-200', label: 'DEMANDE SUPPR.', icon: 'trash' };
+        }
+        
+        // 2. Refusé / Annulé
+        if (status === 'Declined') {
+            return { color: 'bg-red-50 text-red-700 border border-red-200', label: 'REFUSÉ / ANNULÉ', icon: 'x-circle' };
+        }
+        
+        // 3. Validé / Payé
+        if (item.validatedAt || status === 'Signed') {
+            return { color: 'bg-green-100 text-green-800 border border-green-200', label: 'SIGNÉ / PAYÉ', icon: 'dollar' };
+        }
+        
+        // 4. Demande de modification (PRIORITÉ : l'admin doit voir ce statut même s'il a créé la demande)
+        if (item.hasBeenModified && item.lastModifiedBy && !item.validatedAt) {
+            return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'DEMANDE DE MODIFICATION ENVOYÉE', icon: 'alert-circle' };
+        }
+        
+        // 5. Autres statuts standards
+        const statusInfo = StatusMap[status] || { label: status, color: "bg-slate-100 text-slate-700", icon: "circle" };
+        return {
+            label: statusInfo.label,
+            color: `bg-${statusInfo.color}-100 text-${statusInfo.color}-700 border border-${statusInfo.color}-200`,
+            icon: statusInfo.icon || "circle"
+        };
+    };
 
     // Récupérer tous les clients uniques depuis orders et contracts
     useEffect(() => {
@@ -9085,6 +9227,25 @@ function ClientsCRMModule({ user, userData, db, isAdmin }) {
         client.siren.includes(searchTerm) ||
         (client.clientEmail && client.clientEmail.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    // Modifier le motif de modification
+    const handleSaveModificationReason = async (itemId, itemType) => {
+        if (!newModificationReason.trim()) {
+            alert("Le motif ne peut pas être vide.");
+            return;
+        }
+        try {
+            const collectionName = itemType === 'Mission' ? 'orders' : 'contracts';
+            await updateDoc(doc(db, collectionName, itemId), {
+                modificationReason: newModificationReason.trim()
+            });
+            setEditingModificationReason(null);
+            setNewModificationReason('');
+            alert("Motif de modification mis à jour !");
+        } catch (e) {
+            alert("Erreur lors de la mise à jour: " + e.message);
+        }
+    };
 
     // Ajouter une note à un client
     const handleAddNote = async (clientSiren) => {
