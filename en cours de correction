@@ -994,7 +994,7 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
         }
     };
     
-   const executeAction = async (actionType) => {
+    const executeAction = async (actionType) => {
         const batch = writeBatch(db);
         const col = selectedItem.type === 'Mission' ? "orders" : "contracts";
         const ref = doc(db, col, selectedItem.id);
@@ -1056,15 +1056,19 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
         } 
         else if (actionType === 'cancel') {
             // C'est ici pour le bouton "Annuler"
+            // MODIFICATION : Si validatedAt existe, retirer l'argent du commercial
+            if (selectedItem.validatedAt && selectedItem.salesRepId) {
+                const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
+                if (amount > 0) {
+                    batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
+                }
+            }
             batch.update(ref, { 
                 ...cleanState, 
                 status: 'Declined', 
-                declinedReason: finalMsg // On enregistre le motif saisi
+                declinedReason: finalMsg, // On enregistre le motif saisi
+                viewedByAdminAt: new Date() // Marquer comme vu par l'admin
             });
-            if (selectedItem.validatedAt && selectedItem.salesRepId) {
-                const amount = selectedItem.type === 'Contrat' ? (globalSettings.contractAmount || 0) : (globalSettings.pilotMissionAmount || 0);
-                if (amount > 0) batch.update(doc(db, "users", selectedItem.salesRepId), { totalEarnings: increment(-amount) });
-            }
         }
         else if (actionType === 'reflection') {
             batch.update(ref, { ...cleanState, status: 'Reflection', reflectionReason: '' });
@@ -1141,7 +1145,8 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
         }
         
         // 4. Demande de modification (Seulement si PAS annulé et PAS validé)
-        if (item.hasBeenModified && item.lastModifiedBy) {
+        // MODIFICATION : L'admin ne doit pas voir ce statut pour les demandes qu'il a lui-même créées
+        if (item.hasBeenModified && item.lastModifiedBy && item.lastModifiedBy !== user.uid) {
             return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'MODIFICATION DEMANDÉE', icon: 'alert-circle' };
         }
         
@@ -2150,9 +2155,9 @@ function AdminTodoModule({ user, userData, db, setCurrentModule, setCurrentOrder
                         // ACTION VIEW
                         React.createElement('div', { className: "flex flex-col items-center justify-center h-full py-10" },
                             React.createElement('div', { className: "w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 mb-4" }, React.createElement(Icon, { name: "message-square", size: 32 })),
-                            React.createElement('h4', { className: "text-xl font-black mb-2" }, "Confirmation"),
-                            React.createElement('p', { className: "text-slate-400 text-sm mb-6" }, "Message pour le commercial (Optionnel)"),
-                            React.createElement('textarea', { className: "w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 mb-6 outline-none focus:border-slate-300 transition font-medium", rows: 3, placeholder: "Votre message...", value: reasonText, onChange: e => setReasonText(e.target.value) }),
+                            React.createElement('h4', { className: "text-xl font-black mb-2" }, actionStep === 'cancel' ? "Pourquoi annuler ce contrat ?" : actionStep === 'request_modification' ? "Pourquoi demander une modification ?" : actionStep === 'signing_in_progress' ? "Message pour le commercial" : actionStep === 'unvalidate' ? "Pourquoi retirer la validation ?" : "Confirmation"),
+                            React.createElement('p', { className: "text-slate-400 text-sm mb-6" }, actionStep === 'cancel' ? "Indiquez le motif de l'annulation (obligatoire)" : actionStep === 'request_modification' ? "Indiquez le motif de la modification demandée" : actionStep === 'signing_in_progress' ? "Message pour le commercial (Optionnel)" : actionStep === 'unvalidate' ? "Indiquez le motif du retrait de validation" : "Message pour le commercial (Optionnel)"),
+                            React.createElement('textarea', { className: "w-full p-4 bg-slate-50 rounded-2xl border-2 border-slate-100 mb-6 outline-none focus:border-slate-300 transition font-medium", rows: 3, placeholder: actionStep === 'cancel' ? "Indiquez le motif de l'annulation..." : actionStep === 'request_modification' ? "Indiquez le motif de la modification demandée..." : actionStep === 'signing_in_progress' ? "Message pour le commercial..." : actionStep === 'unvalidate' ? "Indiquez le motif du retrait de validation..." : "Votre message...", value: reasonText, onChange: e => setReasonText(e.target.value) }),
                             React.createElement('div', { className: "flex gap-3 w-full" }, 
                                 React.createElement('button', { onClick: () => setActionStep(null), className: "flex-1 py-4 bg-white border-2 border-slate-100 rounded-2xl font-bold text-slate-600 hover:bg-slate-50" }, "Retour"), 
                                 React.createElement('button', { 
@@ -5479,7 +5484,12 @@ function MyOrdersModule({ user, db, globalSettings, setCurrentModule, setCurrent
     
     useEffect(() => {
         const allItems = [...orders, ...contracts];
-        const declinedItems = allItems.filter(item => item.status === 'Declined' && !item.declinedViewedBySalesRep);
+        // MODIFICATION : Seul le commercial doit voir ses propres demandes refusées, pas l'admin
+        const declinedItems = allItems.filter(item => 
+            item.status === 'Declined' && 
+            !item.declinedViewedBySalesRep &&
+            (!isAdmin && item.salesRepId === user.uid) // Seulement pour le commercial, ses propres demandes
+        );
         setDeclinedCount(declinedItems.length);
     }, [orders, contracts]);
 
@@ -5510,7 +5520,8 @@ function MyOrdersModule({ user, db, globalSettings, setCurrentModule, setCurrent
     };
 
     const handleFix = async (item) => {
-        if (item.status === 'Declined') {
+        // MODIFICATION : Seul le commercial peut marquer sa demande refusée comme vue, pas l'admin
+        if (item.status === 'Declined' && !isAdmin) {
             setViewedDeclinedItems(prev => new Set([...prev, item.id]));
             try {
                 const collectionName = item.type === 'Mission' ? 'orders' : 'contracts';
@@ -5594,7 +5605,8 @@ function MyOrdersModule({ user, db, globalSettings, setCurrentModule, setCurrent
         if ( (status === 'InReview' || item.adminRead) && status !== 'Envoyé' && status !== 'Declined' && status !== 'SentToClient' && status !== 'Reflection' && status !== 'AwaitingSignature' && status !== 'SigningInProgress') return { color: 'bg-indigo-100 text-indigo-700 border border-indigo-200', label: '👀 VU PAR ADMIN', icon: 'eye' };
         
         // MODIFICATION : Si HasBeenModified est true MAIS qu'il a été validé, on n'affiche plus l'alerte modif
-        if (item.hasBeenModified && item.lastModifiedBy && !item.validatedAt) {
+        // MODIFICATION : L'admin ne doit pas voir ce statut pour les demandes qu'il a lui-même créées
+        if (item.hasBeenModified && item.lastModifiedBy && !item.validatedAt && item.lastModifiedBy !== user.uid) {
             return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'DEMANDE DE MODIFICATION ENVOYÉE', icon: 'alert-circle' };
         }
         
@@ -5605,14 +5617,16 @@ function MyOrdersModule({ user, db, globalSettings, setCurrentModule, setCurrent
             case 'Draft': return { color: 'bg-orange-100 text-orange-700 border border-orange-200', label: 'BROUILLON', icon: 'edit' };
             case 'Pending': case 'ToDraft': return { color: 'bg-slate-100 text-slate-500 border border-slate-200', label: 'En attente', icon: 'clock' };
             case 'Envoyé': case 'Drafted': 
-                if (item.hasBeenModified && item.lastModifiedBy && !item.validatedAt) return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'DEMANDE DE MODIFICATION ENVOYÉE', icon: 'alert-circle' };
+                // MODIFICATION : L'admin ne doit pas voir ce statut pour les demandes qu'il a lui-même créées
+                if (item.hasBeenModified && item.lastModifiedBy && !item.validatedAt && item.lastModifiedBy !== user.uid) return { color: 'bg-orange-50 text-orange-700 border border-orange-200', label: 'DEMANDE DE MODIFICATION ENVOYÉE', icon: 'alert-circle' };
                 return { color: 'bg-green-50 text-green-700 border border-green-200', label: 'CONTRAT ENVOYÉ À C&N SOLUTIONS', icon: 'check' };
             default: return { color: 'bg-slate-50 text-slate-500', label: status, icon: 'info' };
         }
     };
 
     return React.createElement('div', { className: "max-w-6xl mx-auto space-y-8" },
-        declinedCount > 0 && React.createElement('div', { className: "bg-red-50 border-2 border-red-300 rounded-2xl p-6 shadow-lg animate-pulse" },
+        // MODIFICATION : Cette notification ne doit apparaître que pour les commerciaux, pas pour l'admin
+        !isAdmin && declinedCount > 0 && React.createElement('div', { className: "bg-red-50 border-2 border-red-300 rounded-2xl p-6 shadow-lg animate-pulse" },
             React.createElement('div', { className: "flex items-start gap-4" },
                 React.createElement('div', { className: "bg-red-100 p-3 rounded-xl" }, React.createElement(Icon, { name: "alert-circle", size: 24, className: "text-red-600" })),
                 React.createElement('div', { className: "flex-1" },
@@ -5658,7 +5672,8 @@ function MyOrdersModule({ user, db, globalSettings, setCurrentModule, setCurrent
                 const hasBeenViewed = viewedDeclinedItems.has(item.id) || item.declinedViewedBySalesRep;
                 const shouldBlink = isDeclined && !hasBeenViewed;
                 // MODIFICATION : Masquer l'alerte modif si validé
-                const needsModification = !isAdmin && item.hasBeenModified && !item.readBySalesRep && !item.validatedAt;
+                // MODIFICATION : L'admin ne doit pas voir de clignotement pour les demandes qu'il a lui-même créées
+                const needsModification = !isAdmin && item.hasBeenModified && !item.readBySalesRep && !item.validatedAt && item.lastModifiedBy !== user.uid;
                 const shouldBlinkModification = needsModification;
                 const isNewlyValidated = !isAdmin && item.validatedAt && !item.readBySalesRep;
                 
@@ -9013,10 +9028,15 @@ function ClientsCRMModule({ user, userData, db, isAdmin }) {
                 const contracts = contractSnap.docs.map(d => ({ id: d.id, ...d.data(), type: 'Contrat' }));
                 const allItems = [...orders, ...contracts];
                 
+                // MODIFICATION : Exclure seulement les items avec status 'RequestDelete' (corbeille), mais garder les 'Declined' (annulés)
+                const filteredItems = allItems.filter(item => item.status !== 'RequestDelete');
+                
                 // Grouper par SIREN pour créer des clients uniques
+                // MODIFICATION : Inclure tous les items, même ceux avec 'NO_SIREN' ou sans SIREN, pour voir tous les contrats annulés
                 const clientsMap = new Map();
-                allItems.forEach(item => {
+                filteredItems.forEach(item => {
                     const siren = item.siren || item.siret || 'NO_SIREN';
+                    // MODIFICATION : Ne pas exclure les items avec NO_SIREN, ils doivent aussi apparaître
                     if (!clientsMap.has(siren)) {
                         clientsMap.set(siren, {
                             siren: siren,
